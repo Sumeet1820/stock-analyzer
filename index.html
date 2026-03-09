@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📊 Stock Analyzer</title>
+<style>
+:root {
+  --bg:      #080B14;
+  --card:    #0E1220;
+  --card2:   #141828;
+  --accent:  #3D7EFF;
+  --green:   #00D49A;
+  --red:     #FF4560;
+  --yellow:  #FFD166;
+  --orange:  #FF9F43;
+  --text:    #E2E8F8;
+  --sub:     #6B7099;
+  --border:  #1E2240;
+  --purple:  #7C5CBF;
+  --hover:   #1C2248;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+
+/* ── TOPBAR ── */
+#topbar { background:var(--card); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 16px; height:56px; flex-shrink:0; gap:12px; }
+#topbar .brand { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+#topbar .brand-icon { font-size:22px; }
+#topbar .brand-text { font-size:14px; font-weight:700; color:var(--text); }
+#topbar .brand-sub  { font-size:10px; color:var(--sub); }
+#search-wrap { flex:1; max-width:500px; margin-left:auto; position:relative; display:flex; align-items:center; background:#131830; border:1px solid var(--border); border-radius:8px; overflow:visible; }
+#search-input { flex:1; background:transparent; border:none; outline:none; color:var(--text); font-size:13px; padding:9px 14px; }
+#search-btn { background:var(--accent); border:none; color:#fff; padding:9px 16px; cursor:pointer; font-size:13px; font-weight:600; border-radius:0 7px 7px 0; transition:background .2s; }
+#search-btn:hover { background:#5590ff; }
+#dd { position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--card); border:1px solid var(--border); border-radius:8px; z-index:1000; max-height:280px; overflow-y:auto; display:none; }
+.dd-item { padding:10px 14px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border); transition:background .15s; }
+.dd-item:hover { background:var(--hover); }
+.dd-item span { color:var(--accent); font-weight:600; margin-right:8px; }
+#close-app { background:#1a0f1a; border:1px solid #2a1a2a; color:var(--red); padding:7px 14px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600; transition:background .2s; flex-shrink:0; }
+#close-app:hover { background:#2a1020; }
+
+/* ── BODY LAYOUT ── */
+#body { display:flex; flex:1; overflow:hidden; }
+
+/* ── SIDEBAR ── */
+#sidebar { width:185px; background:var(--card); border-right:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; }
+#sidebar-title { padding:12px 12px 6px; font-size:10px; font-weight:700; color:var(--sub); text-transform:uppercase; letter-spacing:.5px; }
+#sidebar-list { overflow-y:auto; flex:1; padding:4px; }
+.sidebar-btn { display:block; width:100%; text-align:left; background:transparent; border:none; color:var(--text); font-size:12px; padding:9px 10px; border-radius:6px; cursor:pointer; transition:background .15s; margin-bottom:2px; }
+.sidebar-btn:hover, .sidebar-btn.active { background:var(--hover); color:var(--accent); }
+
+/* ── MAIN CENTER ── */
+#main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+/* Tab bar */
+#tab-bar { display:flex; background:var(--card); border-bottom:1px solid var(--border); padding:0 4px; flex-shrink:0; }
+.tab-btn { background:transparent; border:none; color:var(--sub); font-size:12px; font-weight:600; padding:11px 16px; cursor:pointer; border-bottom:2px solid transparent; transition:all .15s; white-space:nowrap; }
+.tab-btn:hover { color:var(--text); }
+.tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+/* Content area */
+#content { flex:1; overflow:hidden; position:relative; }
+.panel { position:absolute; inset:0; overflow-y:auto; display:none; }
+.panel.active { display:block; }
+
+/* ── HOME PANEL ── */
+#home-panel { display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.home-icon { font-size:60px; margin-bottom:16px; }
+.home-title { font-size:22px; font-weight:700; color:var(--text); margin-bottom:8px; }
+.home-sub { font-size:13px; color:var(--sub); margin-bottom:24px; }
+.quick-btns { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+.qbtn { background:var(--card2); border:1px solid var(--border); color:var(--accent); padding:8px 16px; border-radius:20px; cursor:pointer; font-size:12px; font-weight:600; transition:all .15s; }
+.qbtn:hover { background:var(--hover); border-color:var(--accent); }
+
+/* ── HEATMAP ── */
+.hm-header { background:var(--card); padding:10px 16px; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10; }
+.hm-header h2 { font-size:14px; font-weight:700; flex:1; }
+.hm-header .cnt { font-size:11px; color:var(--sub); }
+.hm-grid { display:grid; gap:8px; padding:12px; }
+.hm-grid.cols-4 { grid-template-columns:repeat(4,1fr); }
+.hm-grid.cols-6 { grid-template-columns:repeat(6,1fr); }
+.tile { border-radius:8px; padding:12px 8px; cursor:pointer; text-align:center; border:1px solid rgba(255,255,255,.06); transition:transform .15s, filter .15s; }
+.tile:hover { transform:scale(1.04); filter:brightness(1.15); }
+.tile .t-name { font-size:11px; font-weight:700; margin-bottom:4px; word-break:break-word; }
+.tile .t-price { font-size:10px; opacity:.8; margin-bottom:2px; }
+.tile .t-chg { font-size:13px; font-weight:800; }
+/* tile colors */
+.tc-sp { background:#004d00; color:#00f076; }
+.tc-sg { background:#1B5E20; color:#66BB6A; }
+.tc-g  { background:#2E7D32; color:#A5D6A7; }
+.tc-sr { background:#7B1A1A; color:#EF9A9A; }
+.tc-r  { background:#B71C1C; color:#FF5252; }
+.tc-dr { background:#4A0000; color:#FF1744; }
+
+/* ── STOCK CHECKLIST ── */
+#stock-panel { display:none; }
+.stock-toolbar { background:var(--card); border-bottom:1px solid var(--border); padding:8px 16px; display:flex; align-items:center; gap:8px; position:sticky; top:0; z-index:10; }
+.tbtn { background:var(--border); border:none; color:var(--text); padding:7px 14px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; transition:background .15s; }
+.tbtn:hover { background:var(--hover); }
+.tbtn.back { color:var(--sub); }
+.stock-name-bar { background:var(--card2); border-bottom:1px solid var(--border); padding:12px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.stock-name-bar h1 { font-size:18px; font-weight:800; }
+.stock-name-bar .sym-badge { background:var(--accent); color:#fff; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700; }
+.nse-strip { background:#0a0e1c; border-bottom:1px solid var(--border); padding:8px 16px; display:flex; gap:10px; overflow-x:auto; }
+.nse-cell { background:var(--card); border-radius:6px; padding:6px 12px; text-align:center; min-width:80px; flex-shrink:0; }
+.nse-cell .nc-lbl { font-size:9px; color:var(--sub); text-transform:uppercase; }
+.nse-cell .nc-val { font-size:13px; font-weight:700; }
+.metrics-strip { background:#0a0e1c; padding:8px 16px; display:flex; gap:8px; overflow-x:auto; border-bottom:1px solid var(--border); }
+.met-cell { background:var(--card); border-radius:6px; padding:8px 12px; text-align:center; min-width:70px; flex-shrink:0; }
+.met-cell .m-lbl { font-size:9px; color:var(--sub); }
+.met-cell .m-val { font-size:12px; font-weight:700; color:var(--accent); }
+/* Checklist tabs */
+.cl-tabs { display:flex; background:var(--card); border-bottom:1px solid var(--border); }
+.cl-tab { flex:1; background:transparent; border:none; color:var(--sub); padding:12px; font-size:12px; font-weight:700; cursor:pointer; border-bottom:3px solid transparent; transition:all .15s; }
+.cl-tab.active-swing      { color:#3D7EFF; border-bottom-color:#3D7EFF; }
+.cl-tab.active-positional { color:#FF9F43; border-bottom-color:#FF9F43; }
+.cl-tab.active-longterm   { color:#00D49A; border-bottom-color:#00D49A; }
+/* Checklist table */
+.cl-wrap { padding:12px 16px; }
+.cl-score { display:flex; gap:12px; margin-bottom:12px; }
+.score-pill { padding:6px 16px; border-radius:20px; font-size:12px; font-weight:700; }
+.score-pill.p { background:#0d3020; color:var(--green); border:1px solid var(--green); }
+.score-pill.f { background:#300d15; color:var(--red);   border:1px solid var(--red); }
+.score-pill.n { background:#1a1a30; color:var(--sub);   border:1px solid var(--border); }
+.cl-table { width:100%; border-collapse:collapse; }
+.cl-table th { background:#0a0e1e; color:var(--sub); font-size:10px; text-transform:uppercase; padding:8px 12px; text-align:left; border-bottom:1px solid var(--border); position:sticky; top:0; }
+.cl-table td { padding:9px 12px; font-size:12px; border-bottom:1px solid var(--border); }
+.cl-table tr:hover td { background:var(--hover); }
+.cl-table .cl-label { color:var(--text); font-weight:600; }
+.cl-table .cl-cond  { color:var(--sub); font-size:11px; }
+.cl-table .cl-val   { font-weight:700; text-align:right; }
+.badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:10px; font-weight:700; }
+.badge-pass { background:#0d3020; color:var(--green); }
+.badge-fail { background:#300d15; color:var(--red); }
+.badge-na   { background:#1a1a30; color:var(--sub); }
+.badge-manual { background:#1a1a30; color:var(--yellow); }
+
+/* ── CHARTINK TABLE ── */
+.ct-toolbar { background:var(--card); padding:8px 16px; display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10; }
+.ct-table-wrap { overflow-x:auto; }
+.ct-table { width:100%; border-collapse:collapse; }
+.ct-table thead th { background:#0a0e1e; color:var(--sub); font-size:10px; text-transform:uppercase; padding:9px 12px; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
+.ct-table thead th.r { text-align:right; }
+.ct-table tbody tr { cursor:pointer; transition:background .1s; }
+.ct-table tbody tr:hover td { background:var(--hover); }
+.ct-table tbody td { padding:9px 12px; font-size:12px; border-bottom:1px solid var(--border); white-space:nowrap; }
+.ct-table .sym { color:var(--accent); font-weight:700; }
+.ct-table .tr { text-align:right; }
+.ct-table .accent-bar { width:3px; padding:0; }
+.tag-g { color:var(--green); font-weight:700; }
+.tag-r { color:var(--red); font-weight:700; }
+.sr-num { color:var(--sub); }
+
+/* ── RIGHT PANEL ── */
+#rpanel { width:255px; background:var(--card); border-left:1px solid var(--border); display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; }
+.rp-title { padding:12px 14px 6px; font-size:10px; font-weight:700; color:var(--sub); text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid var(--border); }
+.rp-section { border-bottom:1px solid var(--border); }
+.rp-sec-hdr { padding:8px 12px; font-size:11px; font-weight:700; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:var(--card2); }
+.rp-sec-body { overflow:hidden; }
+.idx-row { display:flex; justify-content:space-between; align-items:center; padding:7px 12px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s; font-size:11px; }
+.idx-row:hover { background:var(--hover); }
+.idx-name { color:var(--text); font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.idx-chg { font-weight:700; font-size:11px; flex-shrink:0; margin-left:8px; }
+.news-item { padding:8px 12px; border-bottom:1px solid var(--border); cursor:pointer; }
+.news-item:hover { background:var(--hover); }
+.news-title { font-size:11px; color:var(--text); line-height:1.4; }
+.news-date  { font-size:10px; color:var(--sub); margin-top:3px; }
+.rp-scroll { overflow-y:auto; flex:1; }
+
+/* ── LOADING / ERROR ── */
+.loading-center { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:12px; }
+.spinner { width:36px; height:36px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.error-center { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:12px; color:var(--red); }
+
+/* scrollbar */
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:#2a2f5a; }
+
+@media (max-width:900px) {
+  #rpanel { display:none; }
+  #sidebar { width:160px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="brand">
+    <div class="brand-icon">📊</div>
+    <div>
+      <div class="brand-text">Stock Analyzer</div>
+      <div class="brand-sub">Screener.in + NSE Live</div>
+    </div>
+  </div>
+  <div id="search-wrap">
+    <input id="search-input" type="text" placeholder="Search stock symbol or name..." autocomplete="off">
+    <button id="search-btn">🔍</button>
+    <div id="dd"></div>
+  </div>
+  <button id="close-app" title="Close / Exit" style="display:none">✕ Exit</button>
+</div>
+
+<!-- BODY -->
+<div id="body">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sidebar-title" style="padding:12px 12px 6px; font-size:10px; font-weight:700; color:var(--sub); text-transform:uppercase; letter-spacing:.5px;">📡 Chartink Screeners</div>
+    <div id="sidebar-list">
+      {% for s in screeners %}
+      <button class="sidebar-btn" data-slug="{{ s.slug }}" data-label="{{ s.label }}" onclick="loadChartink('{{s.slug}}','{{s.label}}')">{{ s.label }}</button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- MAIN CENTER -->
+  <div id="main">
+    <!-- Tab bar -->
+    <div id="tab-bar">
+      <button class="tab-btn active" onclick="showTab('home')">🏠 Home</button>
+      <button class="tab-btn" onclick="showTab('broad')">📊 Broad Market</button>
+      <button class="tab-btn" onclick="showTab('sectoral')">🏭 Sectoral</button>
+      <button class="tab-btn" onclick="showTab('thematic')">🎯 Thematic</button>
+      <button class="tab-btn" onclick="showTab('strategy')">⚙️ Strategy</button>
+    </div>
+    <!-- Content panels -->
+    <div id="content">
+
+      <!-- HOME -->
+      <div id="home-panel" class="panel active">
+        <div class="home-icon">📈</div>
+        <div class="home-title">Stock ka naam search karo</div>
+        <div class="home-sub">Swing &bull; Positional &bull; Long Term Checklist</div>
+        <div class="home-sub" style="margin-bottom:20px;">Ya upar tabs se Index → Stocks dekhो</div>
+        <div class="quick-btns">
+          <button class="qbtn" onclick="loadStockDirect('TRIVENI TURBINE')">TRIVENI TURBINE</button>
+          <button class="qbtn" onclick="loadStockDirect('RELIANCE')">RELIANCE</button>
+          <button class="qbtn" onclick="loadStockDirect('TCS')">TCS</button>
+          <button class="qbtn" onclick="loadStockDirect('HDFCBANK')">HDFCBANK</button>
+          <button class="qbtn" onclick="loadStockDirect('IRFC')">IRFC</button>
+          <button class="qbtn" onclick="loadStockDirect('TITAN')">TITAN</button>
+        </div>
+      </div>
+
+      <!-- HEATMAP PANELS (broad/sectoral/thematic/strategy) -->
+      <div id="broad-panel"    class="panel"></div>
+      <div id="sectoral-panel" class="panel"></div>
+      <div id="thematic-panel" class="panel"></div>
+      <div id="strategy-panel" class="panel"></div>
+
+      <!-- INDEX STOCKS PANEL -->
+      <div id="idx-stocks-panel" class="panel"></div>
+
+      <!-- CHARTINK TABLE PANEL -->
+      <div id="chartink-panel" class="panel"></div>
+
+      <!-- STOCK CHECKLIST PANEL -->
+      <div id="stock-panel" class="panel"></div>
+
+      <!-- LOADING PANEL -->
+      <div id="loading-panel" class="panel">
+        <div class="loading-center">
+          <div class="spinner"></div>
+          <div id="loading-msg" style="color:var(--sub); font-size:13px;">Loading...</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="rpanel">
+    <div class="rp-title">Indices & Info</div>
+    <div class="rp-scroll" id="rp-scroll">
+      <div class="loading-center" style="height:200px;">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let allIndices = [];
+let currentStockData = null;
+let currentTab = 'home';
+let prevPanel  = 'home';   // for back button
+let ddTimer    = null;
+let indicesLoaded = false;
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function showTab(key) {
+  currentTab = key;
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    const keys = ['home','broad','sectoral','thematic','strategy'];
+    b.classList.toggle('active', keys[i] === key);
+  });
+  if (key === 'home') { showPanel('home'); return; }
+  showPanel(key);
+  const panel = document.getElementById(key + '-panel');
+  if (!panel.dataset.loaded) {
+    panel.innerHTML = loadingHTML('Loading indices...');
+    loadHeatmapCat(key);
+    panel.dataset.loaded = '1';
+  }
+}
+
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const p = document.getElementById(id + '-panel') || document.getElementById(id);
+  if (p) p.classList.add('active');
+}
+
+function loadingHTML(msg='Loading...') {
+  return `<div class="loading-center"><div class="spinner"></div><span style="color:var(--sub);font-size:13px;">${msg}</span></div>`;
+}
+
+// ── SEARCH ────────────────────────────────────────────────────────────────────
+const searchInput = document.getElementById('search-input');
+const dd = document.getElementById('dd');
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(ddTimer);
+  const q = searchInput.value.trim();
+  if (q.length < 2) { dd.style.display='none'; return; }
+  ddTimer = setTimeout(() => fetchSuggest(q), 250);
+});
+
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    dd.style.display = 'none';
+    const q = searchInput.value.trim();
+    if (q) loadStockDirect(q);
+  }
+  if (e.key === 'Escape') dd.style.display = 'none';
+});
+
+document.getElementById('search-btn').onclick = () => {
+  dd.style.display = 'none';
+  const q = searchInput.value.trim();
+  if (q) loadStockDirect(q);
+};
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#search-wrap')) dd.style.display = 'none';
+});
+
+async function fetchSuggest(q) {
+  try {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    if (!data.length) { dd.style.display='none'; return; }
+    dd.innerHTML = data.slice(0,8).map(r =>
+      `<div class="dd-item" onclick="pickDD('${escHtml(r.url)}','${escHtml(r.name)}')">
+        <span>${escHtml(r.name)}</span>
+       </div>`).join('');
+    dd.style.display = 'block';
+  } catch { dd.style.display='none'; }
+}
+
+function pickDD(url, name) {
+  dd.style.display = 'none';
+  searchInput.value = '';
+  const fullUrl = 'https://www.screener.in' + url;
+  const sym = url.replace(/^\/company\//,'').replace(/\/.*$/,'').toUpperCase();
+  loadStock(fullUrl, sym);
+}
+
+// ── STOCK LOAD ────────────────────────────────────────────────────────────────
+async function loadStockDirect(sym) {
+  showLoading(`Loading ${sym}...`);
+  try {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(sym)}`);
+    const data = await res.json();
+    if (!data.length) { showError(`"${sym}" not found`); return; }
+    // Match exact symbol first
+    let found = data.find(r => {
+      const m = r.url.match(/\/company\/([^/]+)\//);
+      return m && m[1].toUpperCase() === sym.toUpperCase();
+    }) || data[0];
+    const fullUrl = 'https://www.screener.in' + found.url;
+    const s = found.url.replace(/^\/company\//,'').replace(/\/.*$/,'').toUpperCase();
+    loadStock(fullUrl, s);
+  } catch(e) { showError(e.message); }
+}
+
+async function loadStock(url, sym) {
+  showLoading(`Loading ${sym}...`);
+  try {
+    const res = await fetch(`/api/stock?url=${encodeURIComponent(url)}&sym=${encodeURIComponent(sym)}`);
+    const data = await res.json();
+    if (data.error) { showError(data.error); return; }
+    currentStockData = data;
+    renderStock(data);
+    loadRpanelNews(sym);
+  } catch(e) { showError(e.message); }
+}
+
+function showLoading(msg='Loading...') {
+  document.getElementById('loading-msg').textContent = msg;
+  showPanel('loading');
+}
+function showError(msg) {
+  const p = document.getElementById('loading-panel');
+  p.innerHTML = `<div class="error-center"><div style="font-size:40px;">❌</div><div>${msg}</div><button class="tbtn" onclick="showTab('home')" style="margin-top:8px;">◀ Back</button></div>`;
+  showPanel('loading');
+}
+
+// ── RENDER STOCK ─────────────────────────────────────────────────────────────
+function renderStock(data) {
+  const sym = data.nse_symbol || '';
+  const name = data.name || sym;
+  const nse = data.nse || {};
+  const cl = data.checklist || {};
+
+  let html = `
+  <div class="stock-toolbar">
+    <button class="tbtn back" onclick="goBack()">◀ Back</button>
+    <button class="tbtn" onclick="refreshStock('${escHtml(data.page_url)}','${escHtml(sym)}')">🔄 Refresh</button>
+    <span style="flex:1;font-size:12px;color:var(--sub);">${escHtml(name)}</span>
+    ${data.page_url.includes('consolidated') 
+      ? `<button class="tbtn" onclick="loadStock('${escHtml(data.page_url.replace('/consolidated/','/'))}'+'','${escHtml(sym)}')">📄 Standalone</button>`
+      : `<button class="tbtn" onclick="loadStock('${escHtml(data.page_url.replace(/\/$/, '')+'/consolidated/')}'+'','${escHtml(sym)}')">📄 Consolidated</button>`}
+    ${sym ? `<button class="tbtn" onclick="window.open('https://www.nseindia.com/get-quotes/equity?symbol=${escHtml(sym)}')">📈 NSE</button>` : ''}
+    <button class="tbtn" style="color:var(--sub);" onclick="showTab('home')">✕ Close</button>
+  </div>
+
+  <div class="stock-name-bar">
+    <h1>${escHtml(name)}</h1>
+    ${sym ? `<span class="sym-badge">${escHtml(sym)}</span>` : ''}
+    ${data.is_consolidated ? `<span style="font-size:10px;background:#1a2a1a;color:var(--green);padding:3px 8px;border-radius:10px;font-weight:600;">Consolidated</span>` : ''}
+  </div>`;
+
+  // NSE strip
+  if (nse && nse.ltp) {
+    const chgColor = (nse.change_pct||0) >= 0 ? 'var(--green)' : 'var(--red)';
+    html += `<div class="nse-strip">
+      ${nseCell('LTP', nse.ltp ? '₹'+fmt2(nse.ltp) : 'N/A', chgColor)}
+      ${nseCell('Change', nse.change_pct != null ? fmt2(nse.change_pct)+'%' : 'N/A', chgColor)}
+      ${nseCell('High', nse.high ? '₹'+fmt0(nse.high) : 'N/A', 'var(--yellow)')}
+      ${nseCell('Low', nse.low ? '₹'+fmt0(nse.low) : 'N/A', 'var(--yellow)')}
+      ${nseCell('52W H', nse.week52_high ? '₹'+fmt0(nse.week52_high) : 'N/A', 'var(--green)')}
+      ${nseCell('52W L', nse.week52_low ? '₹'+fmt0(nse.week52_low) : 'N/A', 'var(--red)')}
+      ${nseCell('U Cir', nse.upper_circuit||'N/A', 'var(--green)')}
+      ${nseCell('L Cir', nse.lower_circuit||'N/A', 'var(--red)')}
+    </div>`;
+  }
+
+  // Metrics strip
+  const metrics = [
+    ['Mkt Cap', data.market_cap != null ? fmt0(data.market_cap)+' Cr' : 'N/A'],
+    ['Price',   data.current_price != null ? '₹'+fmt2(data.current_price) : 'N/A'],
+    ['P/E',     data.pe != null ? fmt2(data.pe) : 'N/A'],
+    ['ROE',     data.roe != null ? fmt1(data.roe)+'%' : 'N/A'],
+    ['ROCE',    data.roce != null ? fmt1(data.roce)+'%' : 'N/A'],
+    ['D/E',     data.debt_to_equity != null ? fmt2(data.debt_to_equity) : 'N/A'],
+    ['Int Cov', data.interest_coverage != null ? (data.interest_coverage>=999?'Debt-free':fmt1(data.interest_coverage)+'x') : 'N/A'],
+    ['Promoter',data.promoter_holding != null ? fmt1(data.promoter_holding)+'%' : 'N/A'],
+    ['Pledged', data.pledged != null ? fmt1(data.pledged)+'%' : 'N/A'],
+    ['FII',     data.fii_holding != null ? fmt1(data.fii_holding)+'%' : 'N/A'],
+    ['DII',     data.dii_holding != null ? fmt1(data.dii_holding)+'%' : 'N/A'],
+  ];
+  html += `<div class="metrics-strip">`;
+  for (const [l,v] of metrics) {
+    html += `<div class="met-cell"><div class="m-lbl">${l}</div><div class="m-val">${v}</div></div>`;
+  }
+  html += `</div>`;
+
+  // Checklist tabs
+  html += `<div class="cl-tabs">
+    <button class="cl-tab active-swing" id="clt-swing"      onclick="showCLTab('swing',this)">🔵 Swing <small>(2-3 Hafta)</small></button>
+    <button class="cl-tab"              id="clt-positional" onclick="showCLTab('positional',this)">🟡 Positional <small>(3-12 Mahine)</small></button>
+    <button class="cl-tab"              id="clt-longterm"   onclick="showCLTab('longterm',this)">🟢 Long Term <small>(2-5 Saal)</small></button>
+  </div>
+  <div id="cl-content"></div>`;
+
+  const panel = document.getElementById('stock-panel');
+  panel.innerHTML = html;
+  showPanel('stock');
+  showCLTab('swing', document.getElementById('clt-swing'));
+}
+
+function nseCell(lbl, val, color) {
+  return `<div class="nse-cell"><div class="nc-lbl">${lbl}</div><div class="nc-val" style="color:${color}">${val}</div></div>`;
+}
+
+function showCLTab(key, btn) {
+  document.querySelectorAll('.cl-tab').forEach(b => b.className = 'cl-tab');
+  btn.classList.add('active-' + key);
+  const cl = currentStockData?.checklist?.[key];
+  if (!cl) return;
+  const { rows, pass, fail, na } = cl;
+  let html = `<div class="cl-wrap">
+    <div class="cl-score">
+      <span class="score-pill p">✅ Pass: ${pass}</span>
+      <span class="score-pill f">❌ Fail: ${fail}</span>
+      <span class="score-pill n">❓ N/A: ${na}</span>
+    </div>
+    <table class="cl-table">
+      <thead><tr><th>Criteria</th><th>Condition</th><th>Value</th><th>Status</th></tr></thead>
+      <tbody>`;
+  for (const r of rows) {
+    const badgeCls = r.status === 'pass' ? 'badge-pass' : r.status === 'fail' ? 'badge-fail' : r.status === 'manual' ? 'badge-manual' : 'badge-na';
+    const badgeTxt = r.status === 'pass' ? '✅ Pass' : r.status === 'fail' ? '❌ Fail' : r.status === 'manual' ? '❓ Manual' : '— N/A';
+    html += `<tr>
+      <td class="cl-label">${escHtml(r.label)}</td>
+      <td class="cl-cond">${escHtml(r.condition)}</td>
+      <td class="cl-val" style="color:${r.status==='pass'?'var(--green)':r.status==='fail'?'var(--red)':'var(--sub)'};">${escHtml(r.value)}</td>
+      <td><span class="badge ${badgeCls}">${badgeTxt}</span></td>
+    </tr>`;
+  }
+  html += `</tbody></table></div>`;
+  document.getElementById('cl-content').innerHTML = html;
+}
+
+function goBack() {
+  if (prevPanel && prevPanel !== 'stock') showPanel(prevPanel);
+  else showTab('home');
+  loadRpanelIndices();
+}
+
+function refreshStock(url, sym) {
+  loadStock(url, sym);
+}
+
+// ── HEATMAP CATEGORIES ────────────────────────────────────────────────────────
+async function loadAllIndices() {
+  if (allIndices.length) return allIndices;
+  const res = await fetch('/api/nse/indices');
+  allIndices = await res.json();
+  return allIndices;
+}
+
+async function loadHeatmapCat(cat) {
+  const panel = document.getElementById(cat + '-panel');
+  try {
+    const indices = await loadAllIndices();
+    const rows = indices.filter(r => r.cat === cat);
+    const titles = {broad:'📊 Broad Market',sectoral:'🏭 Sectoral',thematic:'🎯 Thematic',strategy:'⚙️ Strategy'};
+    let html = `<div class="hm-header"><h2>${titles[cat]} Indices</h2><span class="cnt">${rows.length} indices • Click → Stock Heatmap</span></div>`;
+    html += `<div class="hm-grid cols-4">`;
+    for (const r of rows.sort((a,b)=>b.chg-a.chg)) {
+      const tc = tileColor(r.chg);
+      const disp = r.name.replace(/^NIFTY500? /,'').replace(/ INDEX$/,'').substring(0,16);
+      html += `<div class="tile ${tc}" onclick="loadIndexStocks('${escHtml(r.name)}')">
+        <div class="t-name">${escHtml(disp)}</div>
+        ${r.last ? `<div class="t-price">₹${fmt2(r.last)}</div>` : ''}
+        <div class="t-chg">${r.chg>=0?'+':''}${fmt2(r.chg)}%</div>
+      </div>`;
+    }
+    html += `</div>`;
+    panel.innerHTML = html;
+  } catch(e) {
+    panel.innerHTML = `<div class="error-center">❌ Load failed: ${e.message}</div>`;
+  }
+}
+
+// ── INDEX STOCKS ──────────────────────────────────────────────────────────────
+async function loadIndexStocks(indexName) {
+  prevPanel = currentTab;
+  const panel = document.getElementById('idx-stocks-panel');
+  panel.innerHTML = loadingHTML(`Loading ${indexName}...`);
+  showPanel('idx-stocks');
+  try {
+    const res = await fetch(`/api/nse/index-stocks?name=${encodeURIComponent(indexName)}`);
+    const rows = await res.json();
+    let html = `<div class="hm-header">
+      <button class="tbtn back" onclick="showTab('${escHtml(prevPanel)}')" style="flex-shrink:0;background:var(--border);border:none;color:var(--text);padding:6px 12px;border-radius:5px;cursor:pointer;font-size:12px;">◀ Back</button>
+      <h2 style="font-size:13px;">${escHtml(indexName)}</h2>
+      <span class="cnt">${rows.length} stocks • Click → Checklist</span>
+      <button onclick="loadIndexStocks('${escHtml(indexName)}')" style="flex-shrink:0;background:var(--border);border:none;color:var(--sub);padding:6px 10px;border-radius:5px;cursor:pointer;font-size:12px;">🔄</button>
+    </div>`;
+    html += `<div class="hm-grid cols-6">`;
+    for (const r of rows.sort((a,b)=>b.chg-a.chg)) {
+      const tc = tileColor(r.chg);
+      html += `<div class="tile ${tc}" onclick="loadStockDirect('${escHtml(r.symbol)}')">
+        <div class="t-name">${escHtml(r.symbol)}</div>
+        ${r.ltp ? `<div class="t-price">₹${fmt0(r.ltp)}</div>` : ''}
+        <div class="t-chg">${r.chg>=0?'+':''}${fmt2(r.chg)}%</div>
+      </div>`;
+    }
+    html += `</div>`;
+    panel.innerHTML = html;
+  } catch(e) {
+    panel.innerHTML = `<div class="error-center">❌ ${e.message}</div>`;
+  }
+}
+
+// ── CHARTINK TABLE ────────────────────────────────────────────────────────────
+async function loadChartink(slug, label) {
+  document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.toggle('active', b.dataset.slug===slug));
+  prevPanel = currentTab;
+  const panel = document.getElementById('chartink-panel');
+  panel.innerHTML = loadingHTML(`Loading ${label}...`);
+  showPanel('chartink');
+  try {
+    const res = await fetch(`/api/chartink/${slug}`);
+    const data = await res.json();
+    if (data.error) { panel.innerHTML = `<div class="error-center">❌ ${escHtml(data.error)}<br><small>Chartink cookies expire ho gayi hongi</small></div>`; return; }
+    const rows = data.rows || [];
+    let html = `<div class="ct-toolbar">
+      <button class="tbtn back" onclick="showTab('home')">◀ Back</button>
+      <button class="tbtn" onclick="loadChartink('${slug}','${escHtml(label)}')">🔄</button>
+      <span style="font-size:13px;font-weight:700;flex:1;">${escHtml(label)}</span>
+      <span style="font-size:11px;color:var(--sub);">${rows.length} stocks</span>
+      <button class="tbtn" onclick="window.open('https://chartink.com/screener/${slug}')">🌐 Open</button>
+      <button class="tbtn" style="color:var(--sub);" onclick="showTab('home')">✕ Close</button>
+    </div>
+    <div class="ct-table-wrap">
+      <table class="ct-table">
+        <thead><tr>
+          <th style="width:3px;padding:0;"></th>
+          <th>#</th><th>Symbol</th><th>Company</th>
+          <th class="r">LTP ₹</th><th class="r">Chg %</th><th class="r">Volume</th>
+        </tr></thead>
+        <tbody>`;
+    rows.forEach((r,i) => {
+      const chgCls = r.change_pct >= 0 ? 'tag-g' : 'tag-r';
+      const barColor = Math.abs(r.change_pct) > 0.5 ? (r.change_pct>=0?'var(--green)':'var(--red)') : 'var(--border)';
+      const volStr = fmtVol(r.volume);
+      html += `<tr onclick="loadStockDirect('${escHtml(r.symbol)}')">
+        <td style="width:3px;padding:0;background:${barColor};"></td>
+        <td class="sr-num">${i+1}</td>
+        <td class="sym">${escHtml(r.symbol)}</td>
+        <td>${escHtml(r.company.substring(0,32))}</td>
+        <td class="tr">₹${fmt2(r.ltp)}</td>
+        <td class="tr ${chgCls}">${r.change_pct>=0?'+':''}${fmt2(r.change_pct)}%</td>
+        <td class="tr" style="color:var(--sub);">${volStr}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+    panel.innerHTML = html;
+  } catch(e) {
+    panel.innerHTML = `<div class="error-center">❌ ${e.message}</div>`;
+  }
+}
+
+// ── RIGHT PANEL — INDICES ─────────────────────────────────────────────────────
+async function loadRpanelIndices() {
+  const scroll = document.getElementById('rp-scroll');
+  scroll.innerHTML = `<div class="loading-center" style="height:120px;"><div class="spinner"></div></div>`;
+  try {
+    const indices = await loadAllIndices();
+    const cats = [
+      {key:'broad',    label:'📊 Broad Market', color:'#1A3060', open:true},
+      {key:'sectoral', label:'🏭 Sectoral',      color:'#2D1A50', open:false},
+      {key:'thematic', label:'🎯 Thematic',      color:'#0D3030', open:false},
+      {key:'strategy', label:'⚙️ Strategy',     color:'#3D1A00', open:false},
+    ];
+    let html = '';
+    for (const cat of cats) {
+      const rows = indices.filter(r=>r.cat===cat.key).sort((a,b)=>b.chg-a.chg);
+      const bodyId = 'rp-body-'+cat.key;
+      html += `<div class="rp-section">
+        <div class="rp-sec-hdr" style="background:${cat.color};" onclick="toggleRpSec('${bodyId}',this)">
+          <span>${cat.label} <span style="color:rgba(255,255,255,.5);font-size:10px;">(${rows.length})</span></span>
+          <span id="arr-${bodyId}">${cat.open?'▾':'▸'}</span>
+        </div>
+        <div id="${bodyId}" style="display:${cat.open?'block':'none'};">`;
+      for (const r of rows) {
+        const chgColor = r.chg>=0?'var(--green)':'var(--red)';
+        const disp = r.name.replace(/^NIFTY500? /,'').replace(/ INDEX$/,'').substring(0,20);
+        html += `<div class="idx-row" onclick="loadIndexStocks('${escHtml(r.name)}')">
+          <span class="idx-name">${escHtml(disp)}</span>
+          <span class="idx-chg" style="color:${chgColor}">${r.chg>=0?'+':''}${fmt2(r.chg)}%</span>
+        </div>`;
+      }
+      html += `</div></div>`;
+    }
+    scroll.innerHTML = html;
+  } catch(e) {
+    scroll.innerHTML = `<div style="padding:12px;color:var(--sub);font-size:11px;">Failed to load indices</div>`;
+  }
+}
+
+function toggleRpSec(bodyId, hdr) {
+  const body = document.getElementById(bodyId);
+  const arr  = document.getElementById('arr-'+bodyId);
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  arr.textContent = open ? '▸' : '▾';
+}
+
+async function loadRpanelNews(sym) {
+  const scroll = document.getElementById('rp-scroll');
+  scroll.innerHTML = `<div class="loading-center" style="height:80px;"><div class="spinner"></div><span style="font-size:11px;color:var(--sub);">Loading news...</span></div>`;
+  try {
+    const res = await fetch(`/api/nse/announcements?sym=${encodeURIComponent(sym)}`);
+    const news = await res.json();
+    if (!news.length) { scroll.innerHTML = `<div style="padding:14px;color:var(--sub);font-size:11px;">No announcements found</div>`; return; }
+    let html = `<div style="padding:8px 12px 4px;font-size:10px;font-weight:700;color:var(--sub);text-transform:uppercase;border-bottom:1px solid var(--border);">📢 NSE Announcements</div>`;
+    for (const n of news) {
+      html += `<div class="news-item" onclick="${n.url?`window.open('${escHtml(n.url)}')`:''}" style="${n.url?'':'opacity:.7'}">
+        <div class="news-title">${escHtml(n.title)}</div>
+        <div class="news-date">${escHtml(n.date)}</div>
+      </div>`;
+    }
+    scroll.innerHTML = html;
+  } catch {
+    scroll.innerHTML = `<div style="padding:12px;color:var(--sub);font-size:11px;">Could not load news</div>`;
+  }
+}
+
+// ── UTILITIES ─────────────────────────────────────────────────────────────────
+function tileColor(chg) {
+  if (chg >= 3)  return 'tc-sp';
+  if (chg >= 1)  return 'tc-sg';
+  if (chg >= 0)  return 'tc-g';
+  if (chg >= -1) return 'tc-sr';
+  if (chg >= -3) return 'tc-r';
+  return 'tc-dr';
+}
+function fmt0(n) { return Number(n).toLocaleString('en-IN', {maximumFractionDigits:0}); }
+function fmt1(n) { return Number(n).toFixed(1); }
+function fmt2(n) { return Number(n).toFixed(2); }
+function fmtVol(v) {
+  v = parseFloat(v)||0;
+  if (v>=1e7) return (v/1e7).toFixed(2)+'Cr';
+  if (v>=1e5) return (v/1e5).toFixed(1)+'L';
+  return v.toLocaleString('en-IN');
+}
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+loadRpanelIndices();
+</script>
+</body>
+</html>
